@@ -171,7 +171,7 @@ This exercise simulates a real-world scenario where you need to ingest, process,
 8.  **Deliverables:**
 
     *   **Code:**
-        *   `docker-compose.yml` (if used).
+        *   Share a Github Repo with README on how to run the project to vikash@makeit.sg
         *   ClickHouse table creation scripts (SQL).
         *   Kafka Streams application code (or ksqlDB scripts).
         *   Superset configuration details.
@@ -194,67 +194,3 @@ This exercise simulates a real-world scenario where you need to ingest, process,
 *   **Aggregation:** Accurate and efficient real-time and pre-aggregation. Justified choice of aggregation methods.
 *   **Schema Evolution:** Graceful handling of schema changes without data loss or query errors.
 *   **Data Quality:** Effective identification and handling of invalid data.
-
-**Example Kafka Streams Code Snippet (Conceptual):**
-
-```java
-// Example in Java using Kafka Streams DSL (replace with ksqlDB if preferred).
-// This is a HIGHLY simplified example and needs significant error handling and detail
-KStream<String, String> eventsStream = builder.stream("my_events");
-
-KStream<String, JsonNode> parsedEvents = eventsStream.mapValues(json -> {
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-        return mapper.readTree(json);
-    } catch (Exception e) {
-        // Handle parsing errors (send to DLQ)
-        return null;
-    }
-});
-
-// Filter out null events (parsing errors)
-KStream<String, JsonNode> validEvents = parsedEvents.filter((key, event) -> event != null);
-
-//Data Quality
-validEvents.filter((key, event) -> {
-         //Bad Data Example
-          if (event.get("user_id").asInt() < 0){
-                //Send the record to DLQ
-                return false;
-              }
-               return true;
-        }).to("enriched_events");
-
-// Create a 5-minute tumbling window
-TimeWindows tumblingWindow = TimeWindows.of(Duration.ofMinutes(5));
-
-KTable<Windowed<String>, Long> countryEventCounts = validEvents
-    .groupBy((key, event) -> event.get("country").asText())
-    .windowedBy(tumblingWindow)
-    .count();
-
-countryEventCounts.toStream()
-    .map((windowedCountry, count) -> {
-        String country = windowedCountry.key();
-        long windowStart = windowedCountry.window().start();
-        long windowEnd = windowedCountry.window().end();
-        double averageEvents = (double) count; // Since it's already a count
-
-        //Create JSON output string
-        String output = String.format("{\"country\":\"%s\", \"window_start\":\"%s\", \"window_end\":\"%s\", \"average_events\":%f}",
-                                       country, new Date(windowStart), new Date(windowEnd), averageEvents);
-        return new KeyValue<>(country, output);
-    })
-    .to("country_event_averages", Produced.with(Serdes.String(), Serdes.String()));
-```
-
-**Important Considerations:**
-
-*   **Time Estimate:** This is a substantial exercise. Estimate 16-32 hours depending on experience.
-*   **Partial Solutions:** Be flexible. Assess the quality of completed components.
-*   **Documentation:** Emphasize clear, concise, and well-reasoned documentation.
-*   **Provide Pointers:** Offer links to Kafka Streams, ksqlDB, ClickHouse, and Superset documentation.
-*   **ksqlDB Alternative:** If the candidate is familiar with SQL-like syntax, suggest ksqlDB as a potentially simpler alternative to writing a full Kafka Streams application. Provide examples and guidance.
-*   **Specific Versions:** It is good to set a specific version of the frameworks you expect the candidate to work with.
-
-By following these steps, you'll have an in-depth take-home exercise that thoroughly assesses a candidate's ability to design, implement, and troubleshoot a complete real-time analytical data pipeline. Good luck!
